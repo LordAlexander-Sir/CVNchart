@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>The trade of the convoy nation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Spectral:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Two categorical slots only — a road with a counter-runner and a road without.
+   The pair is slots 1 and 2 of the palette validated for these surfaces in the
+   crossings chart: parchment #E2D4B0 light, #16202A dark, all six checks passing. */
+.viz{
+  color-scheme: light;
+  --surface:#E2D4B0; --surface-2:#EBE0C4; --plane:#D8C79E;
+  --ink:#1F2B38; --ink-2:#4A5A68; --muted:#7A7263;
+  --grid:#CBB88C; --axis:#B8A276;
+  --s-single:#B33A18; --s-double:#1F5FA8; --s-third:#0E7A54;
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])) .viz{
+    color-scheme: dark;
+    --surface:#16202A; --surface-2:#1D2A36; --plane:#0F171E;
+    --ink:#F2ECD9; --ink-2:#BFC7CE; --muted:#8B95A0;
+    --grid:#2A3A47; --axis:#3A4C5B;
+    --s-single:#D8562F; --s-double:#4A8FDA; --s-third:#1E9E76;
+  }
+}
+:root[data-theme="dark"] .viz{
+  color-scheme: dark;
+  --surface:#16202A; --surface-2:#1D2A36; --plane:#0F171E;
+  --ink:#F2ECD9; --ink-2:#BFC7CE; --muted:#8B95A0;
+  --grid:#2A3A47; --axis:#3A4C5B;
+  --s-single:#D8562F; --s-double:#4A8FDA; --s-third:#1E9E76;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--plane,#D8C79E)}
+.viz{background:var(--surface); color:var(--ink);
+  font-family:'Spectral',Georgia,'Times New Roman',serif; font-size:15px;
+  line-height:1.45; padding:22px clamp(14px,3vw,34px) 34px; min-height:100vh}
+h1{font-family:'IM Fell English SC',Georgia,serif; font-weight:400;
+   font-size:clamp(20px,3.2vw,29px); line-height:1.15; margin:0 0 4px}
+h2{font-family:'IM Fell English SC',Georgia,serif; font-weight:400;
+   font-size:17px; margin:30px 0 4px; letter-spacing:.02em}
+.eyebrow{font-family:'IM Fell English SC',Georgia,serif; letter-spacing:.14em;
+   text-transform:uppercase; font-size:10.5px; color:var(--muted); margin:0 0 10px}
+.sub{color:var(--ink-2); max-width:76ch; margin:0 0 18px; font-size:14.5px}
+.sub b{font-weight:600}
+.lede{color:var(--ink-2); max-width:76ch; margin:0 0 14px; font-size:14px}
+
+.tiles{display:flex; flex-wrap:wrap; gap:10px; margin:16px 0 8px}
+.tile{border:1px solid var(--grid); border-radius:3px; padding:10px 14px;
+  min-width:150px; background:var(--surface-2)}
+.tile .lab{font-size:10.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--muted); font-family:'IM Fell English SC',Georgia,serif}
+.tile .val{font-size:26px; line-height:1.15; margin-top:3px; color:var(--ink)}
+.tile .sub2{font-size:12.5px; color:var(--ink-2)}
+
+.filters{display:flex; flex-wrap:wrap; gap:10px 18px; align-items:flex-end;
+  padding:0 0 14px; border-bottom:1px solid var(--grid); margin:16px 0}
+.fgroup{display:flex; flex-direction:column; gap:5px}
+.flabel{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--muted); font-family:'IM Fell English SC',Georgia,serif}
+.seg{display:flex; border:1px solid var(--axis); border-radius:3px; overflow:hidden}
+.seg button{font:inherit; font-size:13px; padding:4px 11px; background:transparent;
+  color:var(--ink-2); border:0; border-right:1px solid var(--axis); cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--surface-2)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--surface); font-weight:600}
+.seg button:focus-visible{outline:2px solid var(--s-double); outline-offset:-2px}
+
+.legend{display:flex; flex-wrap:wrap; gap:6px 20px; align-items:center;
+  margin:0 0 12px; font-size:13px; color:var(--ink-2)}
+.lg{display:inline-flex; align-items:center; gap:7px; white-space:nowrap}
+.sw{width:11px; height:11px; border-radius:2px; flex:0 0 auto}
+
+.plotwrap{overflow-x:auto}
+svg.plot{display:block; width:100%; height:auto; overflow:visible; min-width:620px}
+.rowlabel{font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; fill:var(--ink)}
+.rowsub{font-size:11px; fill:var(--muted)}
+.val{font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11.5px;
+  fill:var(--ink-2); font-variant-numeric:tabular-nums}
+.tick{font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px;
+  fill:var(--muted); font-variant-numeric:tabular-nums}
+.bar{cursor:pointer}
+
+.tip{position:fixed; z-index:40; pointer-events:none; opacity:0; transition:opacity .09s;
+  background:var(--surface-2); color:var(--ink); border:1px solid var(--axis);
+  border-radius:3px; padding:8px 11px; font-size:13px; max-width:320px;
+  box-shadow:0 3px 14px rgba(0,0,0,.18)}
+.tip.on{opacity:1}
+.tip .th{font-family:'IM Fell English SC',Georgia,serif; font-size:13px; margin-bottom:3px}
+.tip .tr{color:var(--ink-2); font-size:12.5px}
+
+table{border-collapse:collapse; width:100%; font-size:13px; margin-top:6px}
+caption{text-align:left; color:var(--muted); font-size:12.5px; padding-bottom:8px}
+th,td{padding:5px 10px 5px 0; text-align:left; border-bottom:1px solid var(--grid);
+  vertical-align:top}
+th{font-family:'IM Fell English SC',Georgia,serif; font-weight:400; font-size:11px;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted); cursor:pointer}
+th:hover{color:var(--ink)}
+td.n,th.n{font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-variant-numeric:tabular-nums; text-align:right; padding-right:16px}
+th.n{font-family:'IM Fell English SC',Georgia,serif}
+tr.cand td{background:var(--surface-2)}
+.note{color:var(--muted); font-size:12.5px; margin-top:18px; max-width:76ch}
+.note code{font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<style id="site-nav-style">
+#site-nav{font-family:'IM Fell English SC',Georgia,serif; font-size:12.5px;
+  letter-spacing:.06em; display:flex; flex-wrap:wrap; gap:2px 4px; align-items:center;
+  padding:7px 10px; border:1px solid #B8A276; border-radius:4px;
+  background:#EBE0C4; color:#4A5A68; margin:0 0 14px}
+#site-nav b{font-weight:400; letter-spacing:.14em; text-transform:uppercase;
+  font-size:9.5px; color:#7A7263; margin-right:6px}
+#site-nav a{color:#1F2B38; text-decoration:none; padding:2px 8px; border-radius:3px}
+#site-nav a:hover{background:#D8C79E}
+#site-nav a[aria-current="page"]{background:#1F2B38; color:#EBE0C4}
+#site-nav span.sep{color:#B8A276}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])) #site-nav{background:#1D2A36;
+    border-color:#3A4C5B; color:#BFC7CE}
+  :root:where(:not([data-theme="light"])) #site-nav b{color:#8B95A0}
+  :root:where(:not([data-theme="light"])) #site-nav a{color:#F2ECD9}
+  :root:where(:not([data-theme="light"])) #site-nav a:hover{background:#0F171E}
+  :root:where(:not([data-theme="light"])) #site-nav a[aria-current="page"]{
+    background:#F2ECD9; color:#16202A}
+  :root:where(:not([data-theme="light"])) #site-nav span.sep{color:#3A4C5B}
+}
+:root[data-theme="dark"] #site-nav{background:#1D2A36; border-color:#3A4C5B; color:#BFC7CE}
+:root[data-theme="dark"] #site-nav b{color:#8B95A0}
+:root[data-theme="dark"] #site-nav a{color:#F2ECD9}
+:root[data-theme="dark"] #site-nav a:hover{background:#0F171E}
+:root[data-theme="dark"] #site-nav a[aria-current="page"]{background:#F2ECD9; color:#16202A}
+:root[data-theme="dark"] #site-nav span.sep{color:#3A4C5B}
+/* on the chart the strip lives inside the title plate, which is narrow and
+   already a panel, so the links stack instead of running along a line */
+#title #site-nav{margin:10px 0 0; border:0; background:transparent; padding:0;
+  display:block; line-height:1.65}
+#title #site-nav b{display:block; margin:0 0 3px}
+#title #site-nav a{display:block; padding:1px 6px; margin-left:-6px}
+#title #site-nav span.sep{display:none}
+</style>
+</head>
+<body>
+<div class="viz" id="viz">
+  <nav id="site-nav" aria-label="the charts"><b>Chart of the Settled Sphere</b><a href="index.html">The Chart</a><span class="sep">·</span><a href="convoy-year.html">The great convoys' year</a><span class="sep">·</span><a href="convoy-crossings.html">Crossings</a><span class="sep">·</span><a href="convoy-trade.html" aria-current="page">Trade</a></nav>
+  <p class="eyebrow">Convoy Nation &middot; Office of Lanes</p>
+  <h1>The trade of the convoy nation</h1>
+  <p class="sub">What every convoy is worth, measured the way the Office would measure
+    it: not route length or port count, but <b>how many people it puts a hull in front
+    of in a year</b> &mdash; the people at its ports, multiplied by how many times a
+    year it gets round to them.</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="filters">
+    <div class="fgroup">
+      <span class="flabel" id="l-cls">Class</span>
+      <div class="seg" role="group" aria-labelledby="l-cls" id="seg-cls">
+        <button data-cls="Feeder" aria-pressed="true">Feeders</button>
+        <button data-cls="Major" aria-pressed="false">Great convoys</button>
+        <button data-cls="Frontier" aria-pressed="false">Frontier</button>
+        <button data-cls="all" aria-pressed="false">All</button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="flabel" id="l-by">Measure</span>
+      <div class="seg" role="group" aria-labelledby="l-by" id="seg-by">
+        <button data-by="served" aria-pressed="true">Served a year</button>
+        <button data-by="reach" aria-pressed="false">Reach</button>
+        <button data-by="perDay" aria-pressed="false">Per day</button>
+        <button data-by="soleM" aria-pressed="false">Serves alone</button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="flabel" id="l-theme">Theme</span>
+      <div class="seg" role="group" aria-labelledby="l-theme" id="seg-theme">
+        <button data-theme="light" aria-pressed="false">Light</button>
+        <button data-theme="dark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="plotwrap"><svg class="plot" id="plot" role="img"
+    aria-label="Each convoy by the people it serves in a year"></svg></div>
+
+  <h2>Every convoy, in full</h2>
+  <div id="tableview"></div>
+
+  <p class="note">Read off <code>inputs-v4.json</code> by the same model that draws the
+    chart of the Settled Sphere. <b>Served a year</b> is the population at a convoy's
+    ports multiplied by its laps a year, so a short circuit counts twice. <b>Serves
+    alone</b> is the population at ports no other hull in the fleet calls at &mdash;
+    the worlds that would go dark if this one stopped. A <b>doubled</b> road already
+    carries a second hull running the opposite way.</p>
+  <div class="tip" id="tip" role="status" aria-live="polite"></div>
+</div>
+<script id="data" type="application/json">{"rows":[{"id":"C1","num":1,"cls":"Major","anchor":null,"road":1,"ports":11,"days":365,"loops":1.0,"reach":150400,"served":150400,"perDay":412.1,"sole":[],"soleM":0,"padded":true,"crossings":12.0,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Chara","p":3300.0,"k":12},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C2","num":2,"cls":"Major","anchor":null,"road":1,"ports":11,"days":365,"loops":1.0,"reach":150400,"served":150400,"perDay":412.1,"sole":[],"soleM":0,"padded":true,"crossings":12.0,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Chara","p":3300.0,"k":12},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C3","num":3,"cls":"Major","anchor":null,"road":2,"ports":11,"days":365,"loops":1.0,"reach":150900,"served":150900,"perDay":413.4,"sole":[],"soleM":0,"padded":true,"crossings":11.7,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Chara","p":3300.0,"k":12},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Titawin","p":2100.0,"k":14}]},{"id":"C4","num":4,"cls":"Major","anchor":null,"road":2,"ports":11,"days":365,"loops":1.0,"reach":150900,"served":150900,"perDay":413.4,"sole":[],"soleM":0,"padded":true,"crossings":11.7,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Chara","p":3300.0,"k":12},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Titawin","p":2100.0,"k":14}]},{"id":"C5","num":5,"cls":"Major","anchor":null,"road":3,"ports":11,"days":365,"loops":1.0,"reach":149800,"served":149800,"perDay":410.4,"sole":[],"soleM":0,"padded":true,"crossings":12.0,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Chara","p":3300.0,"k":12},{"n":"Titawin","p":2100.0,"k":14},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C6","num":6,"cls":"Major","anchor":null,"road":3,"ports":11,"days":365,"loops":1.0,"reach":149800,"served":149800,"perDay":410.4,"sole":[],"soleM":0,"padded":true,"crossings":12.0,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Chara","p":3300.0,"k":12},{"n":"Titawin","p":2100.0,"k":14},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C7","num":7,"cls":"Major","anchor":null,"road":4,"ports":11,"days":365,"loops":1.0,"reach":149200,"served":149200,"perDay":408.8,"sole":[],"soleM":0,"padded":true,"crossings":11.8,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Titawin","p":2100.0,"k":14},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C8","num":8,"cls":"Major","anchor":null,"road":4,"ports":11,"days":365,"loops":1.0,"reach":149200,"served":149200,"perDay":408.8,"sole":[],"soleM":0,"padded":true,"crossings":11.5,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Titawin","p":2100.0,"k":14},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C9","num":9,"cls":"Major","anchor":null,"road":5,"ports":11,"days":365,"loops":1.0,"reach":147900,"served":147900,"perDay":405.2,"sole":[],"soleM":0,"padded":true,"crossings":11.8,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Chara","p":3300.0,"k":12},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Titawin","p":2100.0,"k":14},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C10","num":10,"cls":"Major","anchor":null,"road":5,"ports":11,"days":365,"loops":1.0,"reach":147900,"served":147900,"perDay":405.2,"sole":[],"soleM":0,"padded":true,"crossings":12.0,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Chara","p":3300.0,"k":12},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Titawin","p":2100.0,"k":14},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C11","num":11,"cls":"Major","anchor":null,"road":6,"ports":11,"days":365,"loops":1.0,"reach":148700,"served":148700,"perDay":407.4,"sole":[],"soleM":0,"padded":true,"crossings":11.5,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Chara","p":3300.0,"k":12},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Titawin","p":2100.0,"k":14},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C12","num":12,"cls":"Major","anchor":null,"road":6,"ports":11,"days":365,"loops":1.0,"reach":148700,"served":148700,"perDay":407.4,"sole":[],"soleM":0,"padded":true,"crossings":11.3,"worlds":[{"n":"Sol","p":100000.0,"k":12},{"n":"Rigil Kentaurus","p":9400.0,"k":12},{"n":"Tau Ceti","p":7100.0,"k":12},{"n":"Ran","p":6800.0,"k":12},{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Chara","p":3300.0,"k":12},{"n":"Zavijava","p":2700.0,"k":16},{"n":"Titawin","p":2100.0,"k":14},{"n":"Chalawan","p":1600.0,"k":12}]},{"id":"C13","num":13,"cls":"Feeder","anchor":"Chalawan","road":null,"ports":9,"days":297,"loops":1.23,"reach":3476,"served":4272,"perDay":14.4,"sole":["Capella"],"soleM":56,"padded":false,"crossings":7.8,"worlds":[{"n":"Chalawan","p":1600.0,"k":12},{"n":"Copernicus","p":770.0,"k":5},{"n":"Diadem","p":540.0,"k":8},{"n":"Algol","p":232.0,"k":4},{"n":"Alchiba","p":150.0,"k":6},{"n":"13 Trianguli","p":58.0,"k":2},{"n":"Capella","p":56.0,"k":1},{"n":"35 Leonis","p":36.0,"k":5},{"n":"Psi Tauri","p":34.0,"k":5}]},{"id":"C14","num":14,"cls":"Feeder","anchor":"Delta Pavonis","road":null,"ports":8,"days":306,"loops":1.19,"reach":7501,"served":8947,"perDay":29.2,"sole":[],"soleM":0,"padded":false,"crossings":6.7,"worlds":[{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Helvetios","p":870.0,"k":8},{"n":"Cervantes","p":860.0,"k":6},{"n":"Alshain","p":540.0,"k":10},{"n":"Alderamin","p":323.0,"k":2},{"n":"Onkaria","p":141.0,"k":4},{"n":"Felixvarela","p":84.0,"k":2},{"n":"53 Herculis","p":83.0,"k":5}]},{"id":"C15","num":15,"cls":"Feeder","anchor":"82 Eridani","road":null,"ports":8,"days":338,"loops":1.08,"reach":7795,"served":8418,"perDay":24.9,"sole":[],"soleM":0,"padded":false,"crossings":7.2,"worlds":[{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Helvetios","p":870.0,"k":8},{"n":"Copernicus","p":770.0,"k":5},{"n":"Dalim","p":610.0,"k":6},{"n":"Bharani","p":168.0,"k":2},{"n":"Koeia","p":86.0,"k":3},{"n":"Iota Fornacis","p":57.0,"k":3},{"n":"Psi Tauri","p":34.0,"k":5}]},{"id":"C16","num":16,"cls":"Feeder","anchor":"Zavijava","road":null,"ports":7,"days":344,"loops":1.06,"reach":4234,"served":4492,"perDay":13.1,"sole":["Brachium","Dofida"],"soleM":319,"padded":false,"crossings":4.3,"worlds":[{"n":"Zavijava","p":2700.0,"k":16},{"n":"Diadem","p":540.0,"k":8},{"n":"Macondo","p":370.0,"k":3},{"n":"Brachium","p":279.0,"k":1},{"n":"Heze","p":155.0,"k":2},{"n":"Alchiba","p":150.0,"k":6},{"n":"Dofida","p":40.0,"k":1}]},{"id":"C17","num":17,"cls":"Feeder","anchor":"Delta Pavonis","road":null,"ports":9,"days":336,"loops":1.09,"reach":7102,"served":7715,"perDay":23.0,"sole":[],"soleM":0,"padded":false,"crossings":5.7,"worlds":[{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Cervantes","p":860.0,"k":6},{"n":"Gumala","p":550.0,"k":4},{"n":"Alshain","p":540.0,"k":10},{"n":"Okab","p":325.0,"k":3},{"n":"Tau Gruis","p":88.0,"k":4},{"n":"Itonda","p":60.0,"k":2},{"n":"Danfeng","p":41.0,"k":4},{"n":"Karaka","p":38.0,"k":4}]},{"id":"C18","num":18,"cls":"Feeder","anchor":"Titawin","road":null,"ports":9,"days":347,"loops":1.05,"reach":4378,"served":4605,"perDay":13.3,"sole":[],"soleM":0,"padded":false,"crossings":3.8,"worlds":[{"n":"Titawin","p":2100.0,"k":14},{"n":"Helvetios","p":870.0,"k":8},{"n":"Alshain","p":540.0,"k":10},{"n":"Markab","p":352.0,"k":4},{"n":"Ebla","p":240.0,"k":5},{"n":"Mirach","p":95.0,"k":2},{"n":"Scheat","p":67.0,"k":2},{"n":"6 Andromedae","p":63.0,"k":2},{"n":"B\u00e9l\u00e9nos","p":51.0,"k":2}]},{"id":"C19","num":19,"cls":"Feeder","anchor":"Zavijava","road":null,"ports":9,"days":280,"loops":1.3,"reach":4770,"served":6218,"perDay":22.2,"sole":[],"soleM":0,"padded":false,"crossings":7.2,"worlds":[{"n":"Zavijava","p":2700.0,"k":16},{"n":"Flegetonte","p":730.0,"k":4},{"n":"Diadem","p":540.0,"k":8},{"n":"Alphecca","p":255.0,"k":3},{"n":"Alchiba","p":150.0,"k":6},{"n":"Algorab","p":146.0,"k":2},{"n":"Merak","p":130.0,"k":6},{"n":"53 Herculis","p":83.0,"k":5},{"n":"35 Leonis","p":36.0,"k":5}]},{"id":"C20","num":20,"cls":"Feeder","anchor":"Chara","road":null,"ports":7,"days":334,"loops":1.09,"reach":4798,"served":5243,"perDay":15.7,"sole":["Cujam"],"soleM":60,"padded":false,"crossings":4.2,"worlds":[{"n":"Chara","p":3300.0,"k":12},{"n":"Alshain","p":540.0,"k":10},{"n":"Alrakis","p":340.0,"k":2},{"n":"Alphecca","p":255.0,"k":3},{"n":"Alkalurops B","p":220.0,"k":3},{"n":"53 Herculis","p":83.0,"k":5},{"n":"Cujam","p":60.0,"k":1}]},{"id":"C21","num":21,"cls":"Feeder","anchor":"Chalawan","road":null,"ports":9,"days":269,"loops":1.36,"reach":6446,"served":8746,"perDay":32.5,"sole":[],"soleM":0,"padded":false,"crossings":7.7,"worlds":[{"n":"Chara","p":3300.0,"k":12},{"n":"Chalawan","p":1600.0,"k":12},{"n":"Diadem","p":540.0,"k":8},{"n":"Alrakis","p":340.0,"k":2},{"n":"Alkalurops B","p":220.0,"k":3},{"n":"Mizar","p":216.0,"k":3},{"n":"Merak","p":130.0,"k":6},{"n":"53 Herculis","p":83.0,"k":5},{"n":"Kappa Bo\u00f6tis","p":17.0,"k":2}]},{"id":"C22","num":22,"cls":"Feeder","anchor":"Delta Pavonis","road":null,"ports":10,"days":320,"loops":1.14,"reach":12823,"served":14626,"perDay":45.7,"sole":[],"soleM":0,"padded":false,"crossings":9.0,"worlds":[{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Cervantes","p":860.0,"k":6},{"n":"Dalim","p":610.0,"k":6},{"n":"Gumala","p":550.0,"k":4},{"n":"Alshain","p":540.0,"k":10},{"n":"Onkaria","p":141.0,"k":4},{"n":"Kruger 60","p":130.0,"k":2},{"n":"Eta Sagittarii","p":109.0,"k":2},{"n":"Pincoya","p":83.0,"k":2}]},{"id":"C23","num":23,"cls":"Feeder","anchor":"Zavijava","road":null,"ports":10,"days":348,"loops":1.05,"reach":4408,"served":4623,"perDay":13.3,"sole":["2 Centauri"],"soleM":167,"padded":false,"crossings":4.8,"worlds":[{"n":"Zavijava","p":2700.0,"k":16},{"n":"Natasha","p":380.0,"k":3},{"n":"Macondo","p":370.0,"k":3},{"n":"Gacrux","p":226.0,"k":3},{"n":"2 Centauri","p":167.0,"k":1},{"n":"Heze","p":155.0,"k":2},{"n":"Alchiba","p":150.0,"k":6},{"n":"Algorab","p":146.0,"k":2},{"n":"Uklun","p":74.0,"k":4},{"n":"Kalausi","p":40.0,"k":3}]},{"id":"C24","num":24,"cls":"Feeder","anchor":"Titawin","road":null,"ports":8,"days":344,"loops":1.06,"reach":4427,"served":4697,"perDay":13.7,"sole":[],"soleM":0,"padded":false,"crossings":5.0,"worlds":[{"n":"Titawin","p":2100.0,"k":14},{"n":"Helvetios","p":870.0,"k":8},{"n":"Cocibolca","p":560.0,"k":3},{"n":"Markab","p":352.0,"k":4},{"n":"Ebla","p":240.0,"k":5},{"n":"Algol","p":232.0,"k":4},{"n":"33 Pegasi","p":70.0,"k":2},{"n":"70 Tauri","p":3.0,"k":4}]},{"id":"C25","num":25,"cls":"Feeder","anchor":"Zavijava","road":null,"ports":8,"days":336,"loops":1.09,"reach":4538,"served":4930,"perDay":14.7,"sole":[],"soleM":0,"padded":false,"crossings":4.3,"worlds":[{"n":"Zavijava","p":2700.0,"k":16},{"n":"Flegetonte","p":730.0,"k":4},{"n":"Diadem","p":540.0,"k":8},{"n":"Minelauva","p":233.0,"k":2},{"n":"Alchiba","p":150.0,"k":6},{"n":"Khambalia","p":77.0,"k":2},{"n":"Sagarmatha","p":72.0,"k":2},{"n":"35 Leonis","p":36.0,"k":5}]},{"id":"C26","num":26,"cls":"Feeder","anchor":"82 Eridani","road":null,"ports":4,"days":355,"loops":1.03,"reach":11389,"served":11710,"perDay":33.0,"sole":[],"soleM":0,"padded":false,"crossings":4.3,"worlds":[{"n":"Keid","p":5900.0,"k":15},{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Ebla","p":240.0,"k":5},{"n":"HD 73191","p":49.0,"k":2}]},{"id":"C27","num":27,"cls":"Feeder","anchor":"Zavijava","road":null,"ports":9,"days":320,"loops":1.14,"reach":4724,"served":5388,"perDay":16.8,"sole":["A\u00f1a\u00f1uca","HD 90702"],"soleM":125,"padded":false,"crossings":5.3,"worlds":[{"n":"Zavijava","p":2700.0,"k":16},{"n":"Tapecue","p":640.0,"k":4},{"n":"Zosma","p":395.0,"k":3},{"n":"Natasha","p":380.0,"k":3},{"n":"Macondo","p":370.0,"k":3},{"n":"HD 90702","p":80.0,"k":1},{"n":"Uklun","p":74.0,"k":4},{"n":"A\u00f1a\u00f1uca","p":45.0,"k":1},{"n":"Kalausi","p":40.0,"k":3}]},{"id":"C28","num":28,"cls":"Feeder","anchor":"Beta Hydri","road":null,"ports":8,"days":349,"loops":1.05,"reach":6009,"served":6284,"perDay":18.0,"sole":["Nenque","Acamar"],"soleM":169,"padded":false,"crossings":5.5,"worlds":[{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Tapecue","p":640.0,"k":4},{"n":"Cocibolca","p":560.0,"k":3},{"n":"Ceibo","p":420.0,"k":7},{"n":"Natasha","p":380.0,"k":3},{"n":"Acamar","p":98.0,"k":1},{"n":"Nenque","p":71.0,"k":1},{"n":"Kalausi","p":40.0,"k":3}]},{"id":"C29","num":29,"cls":"Feeder","anchor":"Beta Hydri","road":null,"ports":10,"days":346,"loops":1.05,"reach":11169,"served":11782,"perDay":34.1,"sole":["Iota Pictoris","Intan","Sheratan"],"soleM":196,"padded":false,"crossings":6.2,"worlds":[{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Tupi","p":940.0,"k":3},{"n":"Emiw","p":470.0,"k":6},{"n":"Ceibo","p":420.0,"k":7},{"n":"Sheratan","p":93.0,"k":1},{"n":"Koeia","p":86.0,"k":3},{"n":"Iota Pictoris","p":59.0,"k":1},{"n":"Iota Fornacis","p":57.0,"k":3},{"n":"Intan","p":44.0,"k":1}]},{"id":"C30","num":30,"cls":"Feeder","anchor":"Keid","road":null,"ports":8,"days":330,"loops":1.11,"reach":8137,"served":9000,"perDay":27.3,"sole":[],"soleM":0,"padded":false,"crossings":5.2,"worlds":[{"n":"Keid","p":5900.0,"k":15},{"n":"Lusit\u00e2nia","p":780.0,"k":2},{"n":"Copernicus","p":770.0,"k":5},{"n":"Dalim","p":610.0,"k":6},{"n":"Psi Tauri","p":34.0,"k":5},{"n":"Kaewkosin","p":32.0,"k":2},{"n":"Bellatrix","p":8.0,"k":2},{"n":"70 Tauri","p":3.0,"k":4}]},{"id":"C31","num":31,"cls":"Feeder","anchor":"Beta Hydri","road":null,"ports":8,"days":326,"loops":1.12,"reach":5954,"served":6666,"perDay":20.4,"sole":[],"soleM":0,"padded":false,"crossings":6.7,"worlds":[{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Tapecue","p":640.0,"k":4},{"n":"Emiw","p":470.0,"k":6},{"n":"Ceibo","p":420.0,"k":7},{"n":"Ross 687","p":286.0,"k":3},{"n":"Gacrux","p":226.0,"k":3},{"n":"Uklun","p":74.0,"k":4},{"n":"Karaka","p":38.0,"k":4}]},{"id":"C32","num":32,"cls":"Feeder","anchor":"Beta Hydri","road":null,"ports":8,"days":338,"loops":1.08,"reach":10397,"served":11228,"perDay":33.2,"sole":[],"soleM":0,"padded":false,"crossings":5.5,"worlds":[{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Tupi","p":940.0,"k":3},{"n":"Emiw","p":470.0,"k":6},{"n":"Ceibo","p":420.0,"k":7},{"n":"Tau Gruis","p":88.0,"k":4},{"n":"Danfeng","p":41.0,"k":4},{"n":"Solaris","p":38.0,"k":2}]},{"id":"C33","num":33,"cls":"Frontier","anchor":"Gamma Hydri","road":null,"ports":5,"days":263,"loops":1.39,"reach":413,"served":573,"perDay":2.2,"sole":["HD 30818","Amadioha","Nosaxa","HD 75891"],"soleM":146,"padded":false,"crossings":0.7,"worlds":[{"n":"Gamma Hydri","p":267.0,"k":6},{"n":"Nosaxa","p":87.0,"k":1},{"n":"HD 30818","p":37.0,"k":1},{"n":"HD 75891","p":13.0,"k":1},{"n":"Amadioha","p":9.0,"k":1}]},{"id":"C34","num":34,"cls":"Frontier","anchor":"Gamma Hydri","road":null,"ports":4,"days":226,"loops":1.62,"reach":446,"served":720,"perDay":3.2,"sole":["HD 114082","HD 188480"],"soleM":99,"padded":false,"crossings":1.2,"worlds":[{"n":"Gamma Hydri","p":267.0,"k":6},{"n":"HD 207497","p":80.0,"k":2},{"n":"HD 188480","p":57.0,"k":1},{"n":"HD 114082","p":42.0,"k":1}]},{"id":"C35","num":35,"cls":"Frontier","anchor":"Gamma Hydri","road":null,"ports":2,"days":142,"loops":2.57,"reach":283,"served":727,"perDay":5.1,"sole":["HD 24340"],"soleM":16,"padded":false,"crossings":1.7,"worlds":[{"n":"Gamma Hydri","p":267.0,"k":6},{"n":"HD 24340","p":16.0,"k":1}]},{"id":"C36","num":36,"cls":"Frontier","anchor":"Gamma Hydri","road":null,"ports":6,"days":240,"loops":1.52,"reach":665,"served":1011,"perDay":4.2,"sole":["Poerava","Tiaki","HD 188815","HD 194419"],"soleM":366,"padded":false,"crossings":1.3,"worlds":[{"n":"Tiaki","p":297.0,"k":1},{"n":"Gamma Hydri","p":267.0,"k":6},{"n":"HD 194419","p":48.0,"k":1},{"n":"HD 13578","p":32.0,"k":2},{"n":"HD 188815","p":15.0,"k":1},{"n":"Poerava","p":6.0,"k":1}]},{"id":"C37","num":37,"cls":"Frontier","anchor":"Gamma Hydri","road":null,"ports":5,"days":256,"loops":1.43,"reach":826,"served":1178,"perDay":4.6,"sole":["HD 224464","HD 206025","Lambda Gruis","U\u00faba"],"soleM":559,"padded":false,"crossings":1.2,"worlds":[{"n":"Lambda Gruis","p":340.0,"k":1},{"n":"Gamma Hydri","p":267.0,"k":6},{"n":"HD 206025","p":88.0,"k":1},{"n":"U\u00faba","p":76.0,"k":1},{"n":"HD 224464","p":55.0,"k":1}]},{"id":"C38","num":38,"cls":"Frontier","anchor":"Emiw","road":null,"ports":5,"days":182,"loops":2.01,"reach":1269,"served":2545,"perDay":14.0,"sole":[],"soleM":0,"padded":false,"crossings":3.5,"worlds":[{"n":"Emiw","p":470.0,"k":6},{"n":"Ceibo","p":420.0,"k":7},{"n":"Gamma Hydri","p":267.0,"k":6},{"n":"HD 207497","p":80.0,"k":2},{"n":"HD 13578","p":32.0,"k":2}]},{"id":"C39","num":39,"cls":"Frontier","anchor":"Alya B","road":null,"ports":6,"days":226,"loops":1.62,"reach":633,"served":1022,"perDay":4.5,"sole":["HD 171288","HD 152986","Rosal\u00edadecastro","Zubeneschamali","Yed Prior"],"soleM":312,"padded":false,"crossings":1.0,"worlds":[{"n":"Alya B","p":321.0,"k":6},{"n":"Zubeneschamali","p":135.0,"k":1},{"n":"Yed Prior","p":72.0,"k":1},{"n":"HD 152986","p":41.0,"k":1},{"n":"Rosal\u00edadecastro","p":39.0,"k":1},{"n":"HD 171288","p":25.0,"k":1}]},{"id":"C40","num":40,"cls":"Frontier","anchor":"Alya B","road":null,"ports":5,"days":212,"loops":1.72,"reach":772,"served":1329,"perDay":6.3,"sole":["Rapeto","Sika","Nunki"],"soleM":441,"padded":false,"crossings":2.2,"worlds":[{"n":"Alya B","p":321.0,"k":6},{"n":"Nunki","p":290.0,"k":1},{"n":"Rapeto","p":82.0,"k":1},{"n":"Sika","p":69.0,"k":1},{"n":"Alasia","p":10.0,"k":2}]},{"id":"C41","num":41,"cls":"Frontier","anchor":"Alya B","road":null,"ports":4,"days":183,"loops":1.99,"reach":736,"served":1468,"perDay":8.0,"sole":["Bunda","Nashira"],"soleM":350,"padded":false,"crossings":2.2,"worlds":[{"n":"Alya B","p":321.0,"k":6},{"n":"Bunda","p":293.0,"k":1},{"n":"Theta Sagittae","p":65.0,"k":2},{"n":"Nashira","p":57.0,"k":1}]},{"id":"C42","num":42,"cls":"Frontier","anchor":"Alya B","road":null,"ports":3,"days":192,"loops":1.9,"reach":398,"served":757,"perDay":3.9,"sole":["HIP 101390","Anser"],"soleM":77,"padded":false,"crossings":1.5,"worlds":[{"n":"Alya B","p":321.0,"k":6},{"n":"HIP 101390","p":50.0,"k":1},{"n":"Anser","p":27.0,"k":1}]},{"id":"C43","num":43,"cls":"Frontier","anchor":"Alya B","road":null,"ports":4,"days":261,"loops":1.4,"reach":538,"served":752,"perDay":2.9,"sole":["HD 154578","Ogma","13 Lyrae"],"soleM":217,"padded":false,"crossings":1.0,"worlds":[{"n":"Alya B","p":321.0,"k":6},{"n":"13 Lyrae","p":101.0,"k":1},{"n":"HD 154578","p":78.0,"k":1},{"n":"Ogma","p":38.0,"k":1}]},{"id":"C44","num":44,"cls":"Frontier","anchor":"Okab","road":null,"ports":5,"days":200,"loops":1.82,"reach":1261,"served":2301,"perDay":11.5,"sole":[],"soleM":0,"padded":false,"crossings":5.5,"worlds":[{"n":"Alshain","p":540.0,"k":10},{"n":"Okab","p":325.0,"k":3},{"n":"Alya B","p":321.0,"k":6},{"n":"Theta Sagittae","p":65.0,"k":2},{"n":"Alasia","p":10.0,"k":2}]},{"id":"C45","num":45,"cls":"Frontier","anchor":"30 Arietis","road":null,"ports":4,"days":228,"loops":1.6,"reach":560,"served":896,"perDay":3.9,"sole":["Revati","HD 278846"],"soleM":460,"padded":false,"crossings":1.3,"worlds":[{"n":"Revati","p":379.0,"k":1},{"n":"HD 278846","p":81.0,"k":1},{"n":"30 Arietis","p":56.0,"k":5},{"n":"Buna","p":44.0,"k":2}]},{"id":"C46","num":46,"cls":"Frontier","anchor":"30 Arietis","road":null,"ports":6,"days":271,"loops":1.35,"reach":424,"served":571,"perDay":2.1,"sole":["HIP 29814","Nervia","Tejat"],"soleM":52,"padded":false,"crossings":2.3,"worlds":[{"n":"Algol","p":232.0,"k":4},{"n":"38 Cassiopeiae","p":84.0,"k":2},{"n":"30 Arietis","p":56.0,"k":5},{"n":"HIP 29814","p":21.0,"k":1},{"n":"Tejat","p":20.0,"k":1},{"n":"Nervia","p":11.0,"k":1}]},{"id":"C47","num":47,"cls":"Frontier","anchor":"30 Arietis","road":null,"ports":3,"days":186,"loops":1.96,"reach":202,"served":396,"perDay":2.1,"sole":["HD 30097","Nushagak"],"soleM":146,"padded":false,"crossings":2.2,"worlds":[{"n":"HD 30097","p":76.0,"k":1},{"n":"Nushagak","p":70.0,"k":1},{"n":"30 Arietis","p":56.0,"k":5}]},{"id":"C48","num":48,"cls":"Frontier","anchor":"30 Arietis","road":null,"ports":5,"days":254,"loops":1.44,"reach":829,"served":1191,"perDay":4.7,"sole":["HD 17252","Zaurak","Mira","Menkar"],"soleM":773,"padded":false,"crossings":1.0,"worlds":[{"n":"Zaurak","p":353.0,"k":1},{"n":"Menkar","p":294.0,"k":1},{"n":"Mira","p":108.0,"k":1},{"n":"30 Arietis","p":56.0,"k":5},{"n":"HD 17252","p":18.0,"k":1}]},{"id":"C49","num":49,"cls":"Frontier","anchor":"13 Trianguli","road":null,"ports":4,"days":158,"loops":2.31,"reach":242,"served":559,"perDay":3.5,"sole":[],"soleM":0,"padded":false,"crossings":4.7,"worlds":[{"n":"38 Cassiopeiae","p":84.0,"k":2},{"n":"13 Trianguli","p":58.0,"k":2},{"n":"30 Arietis","p":56.0,"k":5},{"n":"Buna","p":44.0,"k":2}]},{"id":"C54","num":54,"cls":"Feeder","anchor":"Delta Pavonis","road":null,"ports":8,"days":365,"loops":1.0,"reach":7501,"served":7501,"perDay":20.6,"sole":[],"soleM":0,"padded":true,"crossings":5.3,"worlds":[{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Helvetios","p":870.0,"k":8},{"n":"Cervantes","p":860.0,"k":6},{"n":"Alshain","p":540.0,"k":10},{"n":"Alderamin","p":323.0,"k":2},{"n":"Onkaria","p":141.0,"k":4},{"n":"Felixvarela","p":84.0,"k":2},{"n":"53 Herculis","p":83.0,"k":5}]},{"id":"C55","num":55,"cls":"Feeder","anchor":"82 Eridani","road":null,"ports":8,"days":365,"loops":1.0,"reach":7795,"served":7795,"perDay":21.4,"sole":[],"soleM":0,"padded":true,"crossings":6.7,"worlds":[{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Helvetios","p":870.0,"k":8},{"n":"Copernicus","p":770.0,"k":5},{"n":"Dalim","p":610.0,"k":6},{"n":"Bharani","p":168.0,"k":2},{"n":"Koeia","p":86.0,"k":3},{"n":"Iota Fornacis","p":57.0,"k":3},{"n":"Psi Tauri","p":34.0,"k":5}]},{"id":"C56","num":56,"cls":"Feeder","anchor":"Delta Pavonis","road":null,"ports":9,"days":365,"loops":1.0,"reach":7102,"served":7102,"perDay":19.5,"sole":[],"soleM":0,"padded":true,"crossings":5.8,"worlds":[{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Cervantes","p":860.0,"k":6},{"n":"Gumala","p":550.0,"k":4},{"n":"Alshain","p":540.0,"k":10},{"n":"Okab","p":325.0,"k":3},{"n":"Tau Gruis","p":88.0,"k":4},{"n":"Itonda","p":60.0,"k":2},{"n":"Danfeng","p":41.0,"k":4},{"n":"Karaka","p":38.0,"k":4}]},{"id":"C57","num":57,"cls":"Feeder","anchor":"Titawin","road":null,"ports":9,"days":365,"loops":1.0,"reach":4378,"served":4378,"perDay":12.0,"sole":[],"soleM":0,"padded":true,"crossings":4.7,"worlds":[{"n":"Titawin","p":2100.0,"k":14},{"n":"Helvetios","p":870.0,"k":8},{"n":"Alshain","p":540.0,"k":10},{"n":"Markab","p":352.0,"k":4},{"n":"Ebla","p":240.0,"k":5},{"n":"Mirach","p":95.0,"k":2},{"n":"Scheat","p":67.0,"k":2},{"n":"6 Andromedae","p":63.0,"k":2},{"n":"B\u00e9l\u00e9nos","p":51.0,"k":2}]},{"id":"C58","num":58,"cls":"Feeder","anchor":"Delta Pavonis","road":null,"ports":10,"days":365,"loops":1.0,"reach":12823,"served":12823,"perDay":35.1,"sole":[],"soleM":0,"padded":true,"crossings":8.7,"worlds":[{"n":"82 Eridani","p":5200.0,"k":18},{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Cervantes","p":860.0,"k":6},{"n":"Dalim","p":610.0,"k":6},{"n":"Gumala","p":550.0,"k":4},{"n":"Alshain","p":540.0,"k":10},{"n":"Onkaria","p":141.0,"k":4},{"n":"Kruger 60","p":130.0,"k":2},{"n":"Eta Sagittarii","p":109.0,"k":2},{"n":"Pincoya","p":83.0,"k":2}]},{"id":"C59","num":59,"cls":"Feeder","anchor":"Keid","road":null,"ports":8,"days":365,"loops":1.0,"reach":8137,"served":8137,"perDay":22.3,"sole":[],"soleM":0,"padded":true,"crossings":3.8,"worlds":[{"n":"Keid","p":5900.0,"k":15},{"n":"Lusit\u00e2nia","p":780.0,"k":2},{"n":"Copernicus","p":770.0,"k":5},{"n":"Dalim","p":610.0,"k":6},{"n":"Psi Tauri","p":34.0,"k":5},{"n":"Kaewkosin","p":32.0,"k":2},{"n":"Bellatrix","p":8.0,"k":2},{"n":"70 Tauri","p":3.0,"k":4}]},{"id":"C60","num":60,"cls":"Frontier","anchor":"Tania Australis","road":null,"ports":4,"days":232,"loops":1.57,"reach":203,"served":319,"perDay":1.4,"sole":["HD 97336","HD 61886","Alpha Lyncis"],"soleM":185,"padded":false,"crossings":1.3,"worlds":[{"n":"Alpha Lyncis","p":90.0,"k":1},{"n":"HD 61886","p":67.0,"k":1},{"n":"HD 97336","p":28.0,"k":1},{"n":"Tania Australis","p":18.0,"k":6}]},{"id":"C61","num":61,"cls":"Frontier","anchor":"Tania Australis","road":null,"ports":3,"days":250,"loops":1.46,"reach":152,"served":222,"perDay":0.9,"sole":["Gakyid","Nu Virginis"],"soleM":134,"padded":false,"crossings":0.8,"worlds":[{"n":"Gakyid","p":70.0,"k":1},{"n":"Nu Virginis","p":64.0,"k":1},{"n":"Tania Australis","p":18.0,"k":6}]},{"id":"C62","num":62,"cls":"Frontier","anchor":"Tania Australis","road":null,"ports":2,"days":149,"loops":2.45,"reach":84,"served":206,"perDay":1.4,"sole":["Liesma"],"soleM":66,"padded":false,"crossings":1.0,"worlds":[{"n":"Liesma","p":66.0,"k":1},{"n":"Tania Australis","p":18.0,"k":6}]},{"id":"C63","num":63,"cls":"Frontier","anchor":"Tania Australis","road":null,"ports":4,"days":205,"loops":1.78,"reach":114,"served":203,"perDay":1.0,"sole":["Stribor","N\u00e1sti","HD 109202"],"soleM":96,"padded":false,"crossings":1.3,"worlds":[{"n":"N\u00e1sti","p":65.0,"k":1},{"n":"HD 109202","p":23.0,"k":1},{"n":"Tania Australis","p":18.0,"k":6},{"n":"Stribor","p":8.0,"k":1}]},{"id":"C64","num":64,"cls":"Frontier","anchor":"Tania Australis","road":null,"ports":3,"days":176,"loops":2.07,"reach":87,"served":180,"perDay":1.0,"sole":["Funi"],"soleM":20,"padded":false,"crossings":1.5,"worlds":[{"n":"HD 73191","p":49.0,"k":2},{"n":"Funi","p":20.0,"k":1},{"n":"Tania Australis","p":18.0,"k":6}]},{"id":"C65","num":65,"cls":"Frontier","anchor":"Tania Australis","road":null,"ports":4,"days":221,"loops":1.65,"reach":741,"served":1224,"perDay":5.5,"sole":[],"soleM":0,"padded":false,"crossings":6.5,"worlds":[{"n":"Diadem","p":540.0,"k":8},{"n":"Merak","p":130.0,"k":6},{"n":"32 Lyncis","p":53.0,"k":2},{"n":"Tania Australis","p":18.0,"k":6}]},{"id":"C66","num":66,"cls":"Frontier","anchor":"Merak","road":null,"ports":8,"days":235,"loops":1.55,"reach":2034,"served":3159,"perDay":13.4,"sole":["Xuange","Seginus"],"soleM":2,"padded":false,"crossings":5.7,"worlds":[{"n":"Flegetonte","p":730.0,"k":4},{"n":"Diadem","p":540.0,"k":8},{"n":"Zosma","p":395.0,"k":3},{"n":"Alkalurops B","p":220.0,"k":3},{"n":"Merak","p":130.0,"k":6},{"n":"Kappa Bo\u00f6tis","p":17.0,"k":2},{"n":"Seginus","p":1.53,"k":1},{"n":"Xuange","p":0.15,"k":1}]},{"id":"C67","num":67,"cls":"Frontier","anchor":"Merak","road":null,"ports":7,"days":228,"loops":1.6,"reach":978,"served":1565,"perDay":6.9,"sole":["Taiyi"],"soleM":2,"padded":false,"crossings":6.3,"worlds":[{"n":"Ross 687","p":286.0,"k":3},{"n":"Alphecca","p":255.0,"k":3},{"n":"Mizar","p":216.0,"k":3},{"n":"Merak","p":130.0,"k":6},{"n":"32 Lyncis","p":53.0,"k":2},{"n":"35 Leonis","p":36.0,"k":5},{"n":"Taiyi","p":1.55,"k":1}]},{"id":"C68","num":68,"cls":"Frontier","anchor":"Merak","road":null,"ports":3,"days":80,"loops":4.56,"reach":741,"served":3381,"perDay":42.3,"sole":[],"soleM":0,"padded":false,"crossings":6.5,"worlds":[{"n":"Zosma","p":395.0,"k":3},{"n":"Mizar","p":216.0,"k":3},{"n":"Merak","p":130.0,"k":6}]},{"id":"C69","num":69,"cls":"Feeder","anchor":"Beta Hydri","road":null,"ports":8,"days":365,"loops":1.0,"reach":10397,"served":10397,"perDay":28.5,"sole":[],"soleM":0,"padded":true,"crossings":4.8,"worlds":[{"n":"Delta Pavonis","p":4600.0,"k":18},{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Tupi","p":940.0,"k":3},{"n":"Emiw","p":470.0,"k":6},{"n":"Ceibo","p":420.0,"k":7},{"n":"Tau Gruis","p":88.0,"k":4},{"n":"Danfeng","p":41.0,"k":4},{"n":"Solaris","p":38.0,"k":2}]},{"id":"C70","num":70,"cls":"Feeder","anchor":"Beta Hydri","road":null,"ports":8,"days":365,"loops":1.0,"reach":5954,"served":5954,"perDay":16.3,"sole":[],"soleM":0,"padded":true,"crossings":6.0,"worlds":[{"n":"Beta Hydri","p":3800.0,"k":16},{"n":"Tapecue","p":640.0,"k":4},{"n":"Emiw","p":470.0,"k":6},{"n":"Ceibo","p":420.0,"k":7},{"n":"Ross 687","p":286.0,"k":3},{"n":"Gacrux","p":226.0,"k":3},{"n":"Uklun","p":74.0,"k":4},{"n":"Karaka","p":38.0,"k":4}]},{"id":"C71","num":71,"cls":"Feeder","anchor":"Titawin","road":null,"ports":8,"days":365,"loops":1.0,"reach":4427,"served":4427,"perDay":12.1,"sole":[],"soleM":0,"padded":true,"crossings":4.5,"worlds":[{"n":"Titawin","p":2100.0,"k":14},{"n":"Helvetios","p":870.0,"k":8},{"n":"Cocibolca","p":560.0,"k":3},{"n":"Markab","p":352.0,"k":4},{"n":"Ebla","p":240.0,"k":5},{"n":"Algol","p":232.0,"k":4},{"n":"33 Pegasi","p":70.0,"k":2},{"n":"70 Tauri","p":3.0,"k":4}]},{"id":"C72","num":72,"cls":"Feeder","anchor":"Zavijava","road":null,"ports":8,"days":365,"loops":1.0,"reach":4538,"served":4538,"perDay":12.4,"sole":[],"soleM":0,"padded":true,"crossings":5.2,"worlds":[{"n":"Zavijava","p":2700.0,"k":16},{"n":"Flegetonte","p":730.0,"k":4},{"n":"Diadem","p":540.0,"k":8},{"n":"Minelauva","p":233.0,"k":2},{"n":"Alchiba","p":150.0,"k":6},{"n":"Khambalia","p":77.0,"k":2},{"n":"Sagarmatha","p":72.0,"k":2},{"n":"35 Leonis","p":36.0,"k":5}]}],"shadow":{"C54":"C14","C55":"C15","C56":"C17","C57":"C18","C58":"C22","C59":"C30","C69":"C32","C70":"C31","C71":"C24","C72":"C25"}}</script>
+<script>
+(function(){
+'use strict';
+const D = JSON.parse(document.getElementById('data').textContent);
+const ROWS = D.rows, SHADOW = D.shadow;
+const DOUBLED = new Set(Object.values(SHADOW));          // roads with a counter-runner
+const IS_DOUBLE = new Set(Object.keys(SHADOW));          // the counter-runners themselves
+const BY = {}; ROWS.forEach(r => BY[r.id] = r);
+let state = {cls: 'Feeder', by: 'served', sort: 'served', dir: -1};
+
+const NAMES = {served: 'people served a year, millions', reach: 'people at its ports, millions',
+               perDay: 'people served per day of circuit, millions', soleM: 'people it alone serves, millions'};
+
+function kind(r){
+  if (r.cls !== 'Feeder') return r.cls === 'Major' ? 'great convoy' : 'frontier loop';
+  if (IS_DOUBLE.has(r.id)) return 'the counter-runner';
+  return DOUBLED.has(r.id) ? 'doubled road' : 'single-hull road';
+}
+function colour(r){
+  if (r.cls !== 'Feeder') return 'var(--s-third)';
+  return (IS_DOUBLE.has(r.id) || DOUBLED.has(r.id)) ? 'var(--s-double)' : 'var(--s-single)';
+}
+
+/* ------------------------------------------------------------------ tiles --- */
+const tot = ROWS.reduce((a, r) => a + r.served, 0);
+const byCls = c => ROWS.filter(r => r.cls === c).reduce((a, r) => a + r.served, 0);
+document.getElementById('tiles').innerHTML = [
+  ['The fleet serves', (tot / 1000).toFixed(0) + ' bn', 'people-calls a year'],
+  ['Great convoys', Math.round(100 * byCls('Major') / tot) + '%', 'of it, on twelve hulls'],
+  ['Feeders', Math.round(100 * byCls('Feeder') / tot) + '%', 'on twenty-six'],
+  ['Frontier', Math.round(100 * byCls('Frontier') / tot) + '%', 'on twenty-six'],
+].map(([l, v, s]) => `<div class="tile"><div class="lab">${l}</div>`
+  + `<div class="val">${v}</div><div class="sub2">${s}</div></div>`).join('');
+
+document.getElementById('legend').innerHTML =
+  '<span class="lg"><i class="sw" style="background:var(--s-single)"></i>feeder road with no counter-runner</span>'
+  + '<span class="lg"><i class="sw" style="background:var(--s-double)"></i>feeder road already doubled</span>'
+  + '<span class="lg"><i class="sw" style="background:var(--s-third)"></i>great convoy or frontier loop</span>';
+
+function press(el, attr, v){ el.querySelectorAll('button').forEach(b =>
+  b.setAttribute('aria-pressed', String(b.dataset[attr] === v))); }
+document.getElementById('seg-cls').onclick = e => { const b = e.target.closest('button');
+  if(!b) return; state.cls = b.dataset.cls; press(e.currentTarget,'cls',state.cls); render(); };
+document.getElementById('seg-by').onclick = e => { const b = e.target.closest('button');
+  if(!b) return; state.by = state.sort = b.dataset.by; press(e.currentTarget,'by',state.by); render(); };
+document.getElementById('seg-theme').onclick = e => { const b = e.target.closest('button');
+  if(!b) return; document.documentElement.setAttribute('data-theme', b.dataset.theme);
+  press(e.currentTarget,'theme',b.dataset.theme); render(); };
+
+/* ------------------------------------------------------------------- plot --- */
+const svg = document.getElementById('plot'), NS = 'http://www.w3.org/2000/svg';
+const el = (n, a) => { const e = document.createElementNS(NS, n);
+  for (const k in a) e.setAttribute(k, a[k]); return e; };
+const M = {l: 162, r: 96, t: 26, b: 30}, ROW = 21;
+
+function shown(){
+  let rs = state.cls === 'all' ? ROWS.slice() : ROWS.filter(r => r.cls === state.cls);
+  return rs.sort((a, b) => (b[state.by] - a[state.by]) || a.num - b.num);
+}
+
+function draw(rows){
+  const W = Math.max(620, Math.min(1180, svg.parentNode.clientWidth || 900));
+  const H = M.t + rows.length * ROW + M.b;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const max = Math.max(...rows.map(r => r[state.by])) || 1;
+  const x = v => M.l + (v / max) * (W - M.l - M.r);
+
+  for (let i = 0; i <= 4; i++) {
+    const v = max * i / 4;
+    svg.appendChild(el('line', {x1:x(v), y1:M.t-6, x2:x(v), y2:M.t+rows.length*ROW-4,
+      stroke:'var(--grid)', 'stroke-width':1}));
+    const t = el('text', {class:'tick', x:x(v), y:M.t+rows.length*ROW+12, 'text-anchor':'middle'});
+    t.textContent = v >= 1000 ? (v/1000).toFixed(v>=10000?0:1) + ' bn' : Math.round(v);
+    svg.appendChild(t);
+  }
+  const cap = el('text', {class:'tick', x:M.l, y:M.t-12});
+  cap.textContent = NAMES[state.by]; svg.appendChild(cap);
+
+  rows.forEach((r, i) => {
+    const y = M.t + i * ROW;
+    // the convoy's name starts the row and the anchor closes it, so a long anchor
+    // runs out of room at its own end rather than over the name
+    const lab = el('text', {class:'rowlabel', x:2, y:y+12});
+    lab.textContent = r.id; svg.appendChild(lab);
+    const sub = el('text', {class:'rowsub', x:M.l-10, y:y+12, 'text-anchor':'end'});
+    sub.textContent = r.cls === 'Major' ? 'road ' + r.road : (r.anchor || '');
+    svg.appendChild(sub);
+    const w = Math.max(1.5, x(r[state.by]) - M.l);
+    const g = el('g', {class:'bar', tabindex:0, role:'button',
+      'aria-label': `${r.id}, ${kind(r)}, ${Math.round(r[state.by])} million`});
+    g.appendChild(el('rect', {x:M.l, y:y+3, width:w, height:13, rx:2, fill:colour(r)}));
+    const v = el('text', {class:'val', x:M.l+w+8, y:y+13});
+    v.textContent = r[state.by] >= 1000 ? (r[state.by]/1000).toFixed(1) + ' bn'
+                                        : Math.round(r[state.by]);
+    g.appendChild(v);
+    g.addEventListener('pointerenter', e => tipAt(e.clientX, e.clientY, r));
+    g.addEventListener('pointerleave', hide);
+    g.addEventListener('focus', () => { const b = g.getBoundingClientRect();
+      tipAt(b.left + 40, b.top, r); });
+    g.addEventListener('blur', hide);
+    svg.appendChild(g);
+  });
+}
+
+const tip = document.getElementById('tip');
+function tipAt(cx, cy, r){
+  const top = r.worlds.slice(0, 4).map(w =>
+    `${w.n} ${Math.round(w.p)}m${w.k === 1 ? ' (only this hull)' : ''}`).join('<br>');
+  tip.innerHTML = `<div class="th">${r.id} · ${kind(r)}</div>`
+    + `<div class="tr">${r.ports} ports · ${r.days}-day lap · ${r.loops} laps a year</div>`
+    + `<div class="tr">reach ${Math.round(r.reach)} m · serves ${Math.round(r.served)} m a year`
+    + ` · ${r.perDay} m a day</div>`
+    + (r.soleM ? `<div class="tr">serves ${r.soleM} m that nobody else reaches</div>` : '')
+    + `<div class="tr">${r.crossings} crossings a year</div>`
+    + `<div class="tr" style="margin-top:5px">${top}</div>`;
+  tip.classList.add('on');
+  const b = tip.getBoundingClientRect();
+  let l = cx + 14, t = cy - b.height - 12;
+  if (l + b.width > innerWidth - 8) l = cx - b.width - 14;
+  if (t < 8) t = cy + 18;
+  tip.style.left = l + 'px'; tip.style.top = t + 'px';
+}
+function hide(){ tip.classList.remove('on'); }
+
+/* ------------------------------------------------------------------ table --- */
+const COLS = [['id','Convoy',0],['clsLabel','Kind',0],['anchor','Anchor',0],
+  ['ports','Ports',1],['days','Lap',1],['loops','Laps/yr',1],['reach','Reach m',1],
+  ['served','Served m/yr',1],['perDay','Per day',1],['soleM','Serves alone m',1],
+  ['crossings','Crossings/yr',1]];
+function drawTable(rows){
+  const head = COLS.map(([k,l,n]) =>
+    `<th class="${n?'n':''}" data-k="${k}">${l}</th>`).join('');
+  const body = rows.map(r => {
+    const cand = r.cls === 'Feeder' && !IS_DOUBLE.has(r.id) && !DOUBLED.has(r.id);
+    const cells = COLS.map(([k,,n]) => {
+      let v = k === 'clsLabel' ? kind(r) : r[k];
+      if (k === 'anchor') v = v || '—';
+      if (typeof v === 'number' && k !== 'loops' && k !== 'perDay' && k !== 'crossings')
+        v = Math.round(v).toLocaleString();
+      return `<td class="${n?'n':''}">${v}</td>`;
+    }).join('');
+    return `<tr class="${cand?'cand':''}">${cells}</tr>`;
+  }).join('');
+  document.getElementById('tableview').innerHTML =
+    `<table><caption>Shaded rows are feeder roads with no counter-runner. `
+    + `Click a heading to sort.</caption><thead><tr>${head}</tr></thead>`
+    + `<tbody>${body}</tbody></table>`;
+  document.querySelectorAll('#tableview th').forEach(th => th.onclick = () => {
+    const k = th.dataset.k;
+    state.dir = (state.sort === k) ? -state.dir : -1;
+    state.sort = k; render(true);
+  });
+}
+
+function render(fromTable){
+  const rows = shown();
+  draw(rows);
+  const t = rows.slice().sort((a, b) => {
+    const A = state.sort === 'clsLabel' ? kind(a) : a[state.sort];
+    const Bv = state.sort === 'clsLabel' ? kind(b) : b[state.sort];
+    if (typeof A === 'string') return state.dir * A.localeCompare(Bv);
+    return state.dir * (A - Bv);
+  });
+  drawTable(t);
+}
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 120); });
+render();
+})();
+</script>
+</body>
+</html>
